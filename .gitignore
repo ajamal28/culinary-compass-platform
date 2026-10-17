@@ -1,0 +1,14 @@
+# Local environment configuration never commit secrets
+**/.env.local
+**/.env.*.local
+**/.env.local.php
+
+# PHP dependencies
+api/vendor/
+
+# JavaScript dependencies
+web/node_modules/
+
+# Symfony generated files
+api/var/cache/
+api/var/log/

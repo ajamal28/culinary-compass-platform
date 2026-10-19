@@ -13,3 +13,22 @@ I am rebuilding Culinary Compass using a Symfony REST API, with React and TypeSc
 ## Development Status
 
 Culinary Compass is currently being rebuilt from scratch. The project is in its initial engineering and repository setup phase. The functionality described above represents the planned platform rather than features already implemented in this new codebase.
+
+## Development Roadmap
+
+The application will be developed in phases:
+
+1. Project setup, prototype audit and MVP requirements.
+2. Symfony REST API with PostgreSQL.
+3. React and TypeScript web application.
+4. AI integration and advanced meal planning.
+5. React Native mobile application.
+6. Cloud deployment and DevOps improvements.
+
+## Local Development
+
+Setup instructions will be added when development begins
+
+## Engineering Documentation
+
+Please see: [Engineering Documentation](docs/README.md)

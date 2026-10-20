@@ -1,14 +1,16 @@
-# Local environment configuration never commit secrets
-**/.env.local
-**/.env.*.local
-**/.env.local.php
+# Secrets and machine-specific environment files
+# Commit only documented templates, never live configuration or credentials.
+**/.env
+**/.env.*
+!**/.env.example
+!**/.env.dist
 
-# PHP dependencies
+# PHP dependencies and generated files
 api/vendor/
+api/var/cache/
+api/var/log/
+api/.phpunit.cache/
+api/.phpunit.result.cache
 
 # JavaScript dependencies
 web/node_modules/
-
-# Symfony generated files
-api/var/cache/
-api/var/log/

@@ -54,6 +54,16 @@ One authenticated user must not be able to retrieve or modify another user's pri
 
 Removing a recipe from the meal planner must update the generated shopping list to reflect the remaining planned meals.
 
+- Users can schedule the same recipe multiple times,
+  including on different days within the same week
+  and across different weeks.
+
+**Scenario F — Repeated recipes**
+
+Given a recipe requires 200 g rice and is scheduled
+twice during the selected week, the shopping list must
+account for 400 g rice before subtracting pantry stock.
+
 ## 7. Development Approach
 
 Development will proceed incrementally, starting with a Symfony API skeleton and foundational tests, followed by recipe management, meal planning, pantry management and shopping-list calculations.

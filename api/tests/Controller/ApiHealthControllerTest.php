@@ -14,7 +14,7 @@ final class ApiHealthControllerTest extends WebTestCase
         self::assertResponseStatusCodeSame(200);
         // Assert the status if equals to ok
         $responseData = json_decode($client->getResponse()->getContent(), true,512, JSON_THROW_ON_ERROR);
-        self::assertSame('ok', $responseData['status']);      
-        
+        self::assertSame('ok', $responseData['status']);
+
     }
 }

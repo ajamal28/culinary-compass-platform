@@ -1,0 +1,43 @@
+name: Symfony API tests
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  phpunit:
+    name: PHPUnit (PHP 8.4)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: api
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Check for Symfony application
+        id: check
+        shell: bash
+        run: |
+          if [ -f composer.json ] && [ -f bin/phpunit ]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice::Symfony code is not committed yet; PHPUnit will run after api/composer.json and api/bin/phpunit are added."
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Set up PHP
+        if: steps.check.outputs.ready == 'true'
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          coverage: none
+          tools: composer:v2
+      - name: Install Composer dependencies
+        if: steps.check.outputs.ready == 'true'
+        run: composer install --no-interaction --prefer-dist --no-progress
+      - name: Run PHPUnit
+        if: steps.check.outputs.ready == 'true'
+        run: php bin/phpunit

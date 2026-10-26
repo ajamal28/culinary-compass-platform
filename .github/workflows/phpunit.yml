@@ -1,3 +1,4 @@
+
 name: Symfony API tests
 
 on:
@@ -12,12 +13,34 @@ jobs:
   phpunit:
     name: PHPUnit (PHP 8.4)
     runs-on: ubuntu-latest
+
+    env:
+      APP_ENV: test
+      DATABASE_URL: 'postgresql://postgres:postgres@127.0.0.1:5432/culinary_compass?serverVersion=18&charset=utf8'
+
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: culinary_compass_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d culinary_compass_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
     defaults:
       run:
         working-directory: api
+
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
+
       - name: Check for Symfony application
         id: check
         shell: bash
@@ -25,19 +48,26 @@ jobs:
           if [ -f composer.json ] && [ -f bin/phpunit ]; then
             echo "ready=true" >> "$GITHUB_OUTPUT"
           else
-            echo "::notice::Symfony code is not committed yet; PHPUnit will run after api/composer.json and api/bin/phpunit are added."
             echo "ready=false" >> "$GITHUB_OUTPUT"
           fi
+
       - name: Set up PHP
         if: steps.check.outputs.ready == 'true'
         uses: shivammathur/setup-php@v2
         with:
           php-version: '8.4'
+          extensions: mbstring, pdo_pgsql, pgsql
           coverage: none
           tools: composer:v2
+
       - name: Install Composer dependencies
         if: steps.check.outputs.ready == 'true'
         run: composer install --no-interaction --prefer-dist --no-progress
+
+      - name: Apply database migrations
+        if: steps.check.outputs.ready == 'true'
+        run: php bin/console doctrine:migrations:migrate --no-interaction --env=test
+
       - name: Run PHPUnit
         if: steps.check.outputs.ready == 'true'
         run: php bin/phpunit

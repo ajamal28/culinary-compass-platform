@@ -33,14 +33,14 @@ final class RegistrationController extends AbstractController
         $email = $data['email'] ?? null;
         $password = $data['password'] ?? null;
 
-        $email = strtolower(trim($email));
-
         if (!is_string($email) || !is_string($password)|| trim($email) === '' || trim($password) === '') {
             return $this->json(
                 ['error'=> "Email and password are required"],
                 Response::HTTP_BAD_REQUEST
              );
         }
+
+        $email = strtolower(trim($email));
 
         # Validate email format
         $violations = $validator->validate($email, [

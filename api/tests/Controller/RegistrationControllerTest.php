@@ -154,4 +154,21 @@ final class RegistrationControllerTest extends WebTestCase
         }
 
     }
+
+    public function testRejectsNonStringEmail(): void
+    {
+        $client = static::createClient();
+
+        $client->request(
+            'POST',
+            '/api/register',
+            server: ['CONTENT_TYPE' => 'application/json'],
+            content: json_encode([
+                'email' => ['invalid', 'email'],
+                'password' => 'securepassword123!'
+            ], JSON_THROW_ON_ERROR)
+        );
+
+        self::assertResponseStatusCodeSame(400);
+    }
 }

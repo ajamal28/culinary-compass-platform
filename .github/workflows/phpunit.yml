@@ -56,9 +56,34 @@ jobs:
         uses: shivammathur/setup-php@v2
         with:
           php-version: '8.4'
-          extensions: mbstring, pdo_pgsql, pgsql
+          extensions: mbstring, pdo_pgsql, pgsql, sodium, openssl
           coverage: none
           tools: composer:v2
+
+      - name: Generate temporary JWT test keys
+        if: steps.check.outputs.ready == 'true'
+        shell: bash
+        run: |
+          mkdir -p config/jwt
+
+          passphrase=$(openssl rand -hex 32)
+
+          echo "JWT_PASSPHRASE=$passphrase" >> "$GITHUB_ENV"
+
+          openssl genpkey \
+            -algorithm RSA \
+            -pkeyopt rsa_keygen_bits:2048 \
+            -aes-256-cbc \
+            -pass pass:"$passphrase" \
+            -out config/jwt/private.pem
+
+          openssl pkey \
+            -in config/jwt/private.pem \
+            -passin pass:"$passphrase" \
+            -pubout \
+            -out config/jwt/public.pem
+
+          chmod 600 config/jwt/private.pem
 
       - name: Install Composer dependencies
         if: steps.check.outputs.ready == 'true'

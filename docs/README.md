@@ -3,6 +3,13 @@
 This directory contains the technical documentation
 for the Culinary Compass platform.
 
+## API contracts and development workflow
+
+- [Recipe API](recipe-api.md): authenticated recipe CRUD, ingredient assignments,
+  validation and ownership rules (feature branch; pending review and merge).
+- [Agent review workflow](../AGENTS.md#agent-review-and-approval-workflow-cc-011):
+  file-by-file diffs, test evidence and explicit approval before commit or push.
+
 ## Planned Documentation
 
 - Prototype Audit: Review the existing application,

@@ -153,4 +153,28 @@ Use isolated test data; clean it in `finally` or via reliable transaction/databa
 
 ## 10. Definition of done
 
+### Agent review and approval workflow (CC-011)
+
+This workflow also applies to changes to this file. The owner retains final control of agent-authored changes.
+
+1. Read the issue, specification and current code; inspect the branch, working tree and staged diff. State a short implementation plan before editing.
+2. Work in small file-level increments. After each modified file, present what changed, why, security or API impact, and a readable diff for owner review. Continue authorized implementation and testing while review is pending.
+3. Run focused tests followed by relevant complete suites. Report passing and failing checks and checks not run, with reasons. Preserve unrelated changes and keep secrets, JWT keys, local environment files and generated files out of staging.
+4. **STOP at the review gate:** do not commit, push, open or merge a PR, or deploy agent-authored changes until the owner explicitly approves the reviewed changes. Commit, push, opening a PR, merge and deployment are separate actions; approval for one does not authorize the others. If files change after approval, present the new diff for approval again.
+5. At the gate, use the handoff template below. After approval, prepare the PR-ready summary, proposed Conventional Commit message and test evidence for the approved action. Never claim an issue is complete while required checks or approvals remain outstanding.
+
+#### Review handoff template
+
+- Issues and branch:
+- Changed files (excluding preserved pre-existing changes):
+- For each file: what changed / why / security or API impact:
+- Meaningful diff: attach the readable diff or provide `git diff -- <paths>` (use `git diff --no-index -- /dev/null <path>` for an untracked file on systems that support it):
+- Tests: command, result, and checks not run with reasons:
+- Risks or limitations:
+- Approval status: pending, or exact actions approved by the owner:
+
+#### Small example: recipe validation fix
+
+Read the recipe issue and tests on a feature branch, explain the validation change, edit the controller and present its diff. Add the regression test and present that file's diff. Run the focused test and full suite, then provide the handoff above with approval status **pending**. Stop without staging, committing, pushing or opening a PR. Once the owner approves a specific action, perform only that action on the reviewed files. Existing ownership, authentication and MVP scope requirements still apply.
+
 A feature is ready for review when it satisfies the relevant acceptance criteria in `docs/mvp-requirements.md`, preserves user isolation, handles malformed inputs, has clear API responses, includes passing local/CI tests as applicable, and has no credentials or generated secrets in the diff. Do not mark a feature complete solely because a manual happy-path request succeeded.

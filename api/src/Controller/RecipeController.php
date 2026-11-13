@@ -4,101 +4,143 @@ namespace App\Controller;
 
 use App\Entity\Recipe;
 use App\Entity\User;
+use App\Repository\RecipeRepository;
+use App\Service\RecipeInput;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Exception\JsonException;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 use Symfony\Component\Routing\Attribute\Route;
 
 final class RecipeController extends AbstractController
 {
-    #[Route(path: '/api/recipes', name: 'api_recipe_create',methods: ['POST'])]
-    public function create(Request $request, EntityManagerInterface $entityManager): JsonResponse {
-        // 1. Get the authenticated user
+    public function __construct(
+        private RecipeRepository $recipes,
+        private RecipeInput $input,
+        private EntityManagerInterface $entityManager,
+    ) {
+    }
+
+    #[Route('/api/recipes', name: 'api_recipe_create', methods: ['POST'])]
+    public function create(Request $request): JsonResponse
+    {
         $user = $this->getUser();
-
         if (!$user instanceof User) {
-            return $this->json(
-                ['error' => 'Unauthorized'],
-                Response::HTTP_UNAUTHORIZED
-            );
+            return $this->json(['error' => 'Unauthorized'], Response::HTTP_UNAUTHORIZED);
         }
 
-        // 2. Decode the JSON request body
+        $recipe = (new Recipe())->setOwner($user);
+        if ($error = $this->readInput($recipe, $request)) {
+            return $error;
+        }
+        $this->entityManager->persist($recipe);
+        $this->entityManager->flush();
+
+        return $this->json($this->representation($recipe), Response::HTTP_CREATED, [
+            'Location' => $this->generateUrl('api_recipe_show', ['id' => $recipe->getId()]),
+        ]);
+    }
+
+    #[Route('/api/recipes', name: 'api_recipe_list', methods: ['GET'])]
+    public function list(): JsonResponse
+    {
+        $user = $this->getUser();
+        if (!$user instanceof User) {
+            return $this->json(['error' => 'Unauthorized'], Response::HTTP_UNAUTHORIZED);
+        }
+
+        return $this->json(array_map(
+            $this->representation(...),
+            $this->recipes->findBy(['owner' => $user], ['id' => 'ASC']),
+        ));
+    }
+
+    #[Route('/api/recipes/{id}', name: 'api_recipe_show', methods: ['GET'])]
+    public function show(string $id): JsonResponse
+    {
+        $recipe = $this->ownedRecipe($id);
+
+        return $recipe === null ? $this->notFound() : $this->json($this->representation($recipe));
+    }
+
+    #[Route('/api/recipes/{id}', name: 'api_recipe_update', methods: ['PUT'])]
+    public function update(string $id, Request $request): JsonResponse
+    {
+        $recipe = $this->ownedRecipe($id);
+        if ($recipe === null) {
+            return $this->notFound();
+        }
+        if ($error = $this->readInput($recipe, $request)) {
+            return $error;
+        }
+        $this->entityManager->flush();
+
+        return $this->json($this->representation($recipe));
+    }
+
+    #[Route('/api/recipes/{id}', name: 'api_recipe_delete', methods: ['DELETE'])]
+    public function delete(string $id): Response
+    {
+        $recipe = $this->ownedRecipe($id);
+        if ($recipe === null) {
+            return $this->notFound();
+        }
+        $this->entityManager->remove($recipe);
+        $this->entityManager->flush();
+
+        return new Response(null, Response::HTTP_NO_CONTENT);
+    }
+
+    private function ownedRecipe(string $id): ?Recipe
+    {
+        $user = $this->getUser();
+        if (!$user instanceof User || !preg_match('/^[1-9][0-9]{0,9}$/D', $id) || (int) $id > 2147483647) {
+            return null;
+        }
+
+        return $this->recipes->findOneBy(['id' => (int) $id, 'owner' => $user]);
+    }
+
+    private function readInput(Recipe $recipe, Request $request): ?JsonResponse
+    {
         try {
-            $data = $request->toArray();
-        } catch (JsonException $e) {
-            return $this->json(
-                ['error' => 'Invalid JSON request body'],
-                Response::HTTP_BAD_REQUEST
-            );
+            $this->input->apply($recipe, $request->toArray());
+        } catch (JsonException) {
+            return $this->json(['error' => 'Invalid JSON request body'], Response::HTTP_BAD_REQUEST);
+        } catch (HttpExceptionInterface $exception) {
+            return $this->json(['error' => $exception->getMessage()], $exception->getStatusCode());
         }
 
-        // 3. Extract the fields
-        $name = $data['name'] ?? null;
-        $servings = $data['servings'] ?? null;
-        $instructions = $data['instructions'] ?? null;
+        return null;
+    }
 
-        // 4. Validate the recipe name
-        if (!is_string($name) || trim($name) === '') {
-            return $this->json(
-                ['error' => 'Recipe name is required'],
-                Response::HTTP_BAD_REQUEST
-            );
+    private function notFound(): JsonResponse
+    {
+        return $this->json(['error' => 'Recipe not found'], Response::HTTP_NOT_FOUND);
+    }
+
+    private function representation(Recipe $recipe): array
+    {
+        $ingredients = [];
+        foreach ($recipe->getRecipeIngredients() as $link) {
+            $ingredients[] = [
+                'ingredientId' => $link->getIngredient()->getId(),
+                'name' => $link->getIngredient()->getName(),
+                'quantity' => $link->getQuantity(),
+                'unit' => $link->getUnit(),
+            ];
         }
+        usort($ingredients, static fn (array $a, array $b): int => $a['ingredientId'] <=> $b['ingredientId']);
 
-        $name = trim($name);
-
-        if (mb_strlen($name) > 150) {
-            return $this->json(
-                ['error' => 'Recipe name cannot exceed 150 characters'],
-                Response::HTTP_BAD_REQUEST
-            );
-        }
-
-        // 5. Validate servings
-        if (!is_int($servings) || $servings <= 0) {
-            return $this->json(
-                ['error' => 'Servings must be a positive integer'],
-                Response::HTTP_BAD_REQUEST
-            );
-        }
-
-        // 6. Validate instructions
-        if (!is_string($instructions) || trim($instructions) === '') {
-            return $this->json(
-                ['error' => 'Recipe instructions are required'],
-                Response::HTTP_BAD_REQUEST
-            );
-        }
-
-        $instructions = trim($instructions);
-
-        // 7. Create the Recipe entity
-        $recipe = new Recipe();
-
-        $recipe->setName($name);
-        $recipe->setServings($servings);
-        $recipe->setInstructions($instructions);
-
-        // The owner must be the authenticated user.
-        $recipe->setOwner($user);
-
-        // 8. Save to PostgreSQL
-        $entityManager->persist($recipe);
-        $entityManager->flush();
-
-        // 9. Return the created recipe
-        return $this->json(
-            [
-                'id' => $recipe->getId(),
-                'name' => $recipe->getName(),
-                'servings' => $recipe->getServings(),
-                'instructions' => $recipe->getInstructions(),
-            ],
-            Response::HTTP_CREATED
-        );
+        return [
+            'id' => $recipe->getId(),
+            'name' => $recipe->getName(),
+            'servings' => $recipe->getServings(),
+            'instructions' => $recipe->getInstructions(),
+            'ingredients' => $ingredients,
+        ];
     }
 }

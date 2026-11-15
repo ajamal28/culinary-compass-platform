@@ -12,6 +12,9 @@ for the Culinary Compass platform.
 
 ## Planned Documentation
 
+- [Weekly meal planning proposal](meal-planning-plan.md): proposed entity, API,
+  ownership rules and test plan; implementation awaits architecture review.
+
 - Prototype Audit: Review the existing application,
   identify issues and document what needs rebuilding.
 

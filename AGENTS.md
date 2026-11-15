@@ -66,9 +66,9 @@ culinary-compass-platform/
 
 Implemented in the mainline backend: health check, user registration, JWT login, protected `/api/me`, `User`, `Recipe`, `Ingredient`, `RecipeIngredient` entities, migrations and authentication tests.
 
-The authenticated `POST /api/recipes` creation endpoint is under development on `feature/recipe-api` (draft PR #20 at the time these instructions were written). Check the live branch/PR before treating it as merged. Recipe listing, detail, update, delete, meal scheduling, pantry and shopping-list generation are not yet complete.
+Recipe CRUD was merged through PR #20 on 13 November 2026. JWT-protected routes support `POST /api/recipes`, `GET /api/recipes`, and `GET`, `PUT`, and `DELETE /api/recipes/{id}`. Reads and mutations enforce authenticated ownership. Recipe ingredient assignments with quantities and units are implemented, with functional tests covering CRUD, validation, authentication and cross-user isolation. `PUT` performs full replacement; `PATCH` is not implemented.
 
-Prefer to finish **recipe CRUD and ownership tests** before moving to meal planning, pantry and shopping-list calculations. Keep ingredients/quantities as an explicit follow-up to basic recipe creation unless the issue requires them.
+Ingredient catalogue search and creation remain outstanding: recipes can reference existing ingredients, but users cannot yet discover or create them through the API. Complete the ingredient catalogue before moving to meal planning, pantry management and shopping-list generation, which remain future work. PATCH support requires a separate owner decision; do not duplicate the existing recipe CRUD or ingredient-assignment functionality.
 
 ## 5. Domain model and business invariants
 

@@ -53,10 +53,11 @@ owner-approved contract and implementation.
 - Extra fields are ignored. `owner`, `owner_id`, and `userId` cannot set or change
   ownership; the JWT principal determines ownership.
 
-Ingredient catalogue search and creation have no HTTP endpoints yet.
-Ingredient IDs in the example must already exist; no ingredient is created or
-renamed by recipe writes. This API supports attaching, changing and removing
-existing ingredient assignments; a client-facing catalogue remains follow-up work.
+The [ingredient catalogue API](ingredient-api.md) adds authenticated search and
+creation on `feature/cc-017-ingredient-catalogue` (pending review and merge).
+Ingredient IDs in the example must already exist; create or discover them through
+the catalogue before writing recipe assignments. Recipe writes do not create or
+rename global ingredients.
 
 ## Responses and errors
 

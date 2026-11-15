@@ -16,28 +16,20 @@ class IngredientRepository extends ServiceEntityRepository
         parent::__construct($registry, Ingredient::class);
     }
 
-//    /**
-//     * @return Ingredient[] Returns an array of Ingredient objects
-//     */
-//    public function findByExampleField($value): array
-//    {
-//        return $this->createQueryBuilder('i')
-//            ->andWhere('i.exampleField = :val')
-//            ->setParameter('val', $value)
-//            ->orderBy('i.id', 'ASC')
-//            ->setMaxResults(10)
-//            ->getQuery()
-//            ->getResult()
-//        ;
-//    }
+    /** @return list<array{id: int, name: string}> */
+    public function search(string $query, int $limit): array
+    {
+        // Literal substring matching: user % and _ are not SQL wildcards.
+        $term = str_replace(['!', '%', '_'], ['!!', '!%', '!_'], mb_strtolower($query, 'UTF-8'));
 
-//    public function findOneBySomeField($value): ?Ingredient
-//    {
-//        return $this->createQueryBuilder('i')
-//            ->andWhere('i.exampleField = :val')
-//            ->setParameter('val', $value)
-//            ->getQuery()
-//            ->getOneOrNullResult()
-//        ;
-//    }
+        return $this->createQueryBuilder('i')
+            ->select('i.id', 'i.name')
+            ->where("i.canonicalName LIKE :term ESCAPE '!'")
+            ->setParameter('term', '%'.$term.'%')
+            ->orderBy('i.canonicalName', 'ASC')
+            ->addOrderBy('i.id', 'ASC')
+            ->setMaxResults($limit)
+            ->getQuery()
+            ->getArrayResult();
+    }
 }

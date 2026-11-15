@@ -8,6 +8,7 @@ use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
 
 #[ORM\Entity(repositoryClass: IngredientRepository::class)]
+#[ORM\UniqueConstraint(name: 'UNIQ_INGREDIENT_CANONICAL_NAME', fields: ['canonicalName'])]
 class Ingredient
 {
     #[ORM\Id]
@@ -17,6 +18,10 @@ class Ingredient
 
     #[ORM\Column(length: 150)]
     private ?string $name = null;
+
+    // Kept separate so display case is preserved while duplicates are constrained.
+    #[ORM\Column(length: 450)]
+    private ?string $canonicalName = null;
 
     /**
      * @var Collection<int, RecipeIngredient>
@@ -41,9 +46,19 @@ class Ingredient
 
     public function setName(string $name): static
     {
+        $name = self::normalizeName($name);
+        if ($name === '' || mb_strlen($name) > 150 || preg_match('/[\p{Cc}\p{Cf}]/u', $name)) {
+            throw new \InvalidArgumentException('Ingredient name must contain 1 to 150 characters without control characters');
+        }
         $this->name = $name;
+        $this->canonicalName = mb_strtolower($name, 'UTF-8');
 
         return $this;
+    }
+
+    public static function normalizeName(string $name): string
+    {
+        return trim(preg_replace('/\s+/u', ' ', $name) ?? '', ' ');
     }
 
     /**

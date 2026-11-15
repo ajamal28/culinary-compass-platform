@@ -7,6 +7,8 @@ for the Culinary Compass platform.
 
 - [Recipe API](recipe-api.md): authenticated recipe CRUD, ingredient assignments,
   validation and ownership rules, merged through PR #20.
+- [Ingredient catalogue API](ingredient-api.md): shared ingredient search,
+  creation, duplicate handling and migration (feature branch; pending merge).
 - [Agent review workflow](../AGENTS.md#agent-review-and-approval-workflow-cc-011):
   file-by-file diffs, test evidence and explicit approval before commit or push.
 

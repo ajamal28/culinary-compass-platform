@@ -177,7 +177,7 @@ final class RecipeControllerTest extends WebTestCase
         $this->request('GET', '/api/recipes', token: $this->tokens[1]);
         self::assertSame([$otherRecipe], $this->body());
 
-        foreach (['GET', 'PUT', 'DELETE'] as $method) {
+        foreach (['GET', 'PUT', 'PATCH', 'DELETE'] as $method) {
             $this->request($method, '/api/recipes/'.$id, $this->payload(), $this->tokens[1]);
             self::assertResponseStatusCodeSame(404);
             self::assertSame(['error' => 'Recipe not found'], $this->body());
@@ -197,7 +197,8 @@ final class RecipeControllerTest extends WebTestCase
         $this->request('POST', '/api/recipes', $this->payload());
         $created = $this->body();
         foreach ([['POST', '/api/recipes'], ['GET', '/api/recipes'], ['GET', '/api/recipes/'.$created['id']],
-            ['PUT', '/api/recipes/'.$created['id']], ['DELETE', '/api/recipes/'.$created['id']]] as [$method, $url]) {
+            ['PUT', '/api/recipes/'.$created['id']], ['PATCH', '/api/recipes/'.$created['id']],
+            ['DELETE', '/api/recipes/'.$created['id']]] as [$method, $url]) {
             foreach (['', 'invalid.token.value', $this->expiredToken] as $token) {
                 $this->request($method, $url, $this->payload(), $token);
                 self::assertResponseStatusCodeSame(401);
@@ -226,7 +227,8 @@ final class RecipeControllerTest extends WebTestCase
         }
         foreach ($invalid as $index => $changes) {
             $payload = $index === 0 ? [] : array_replace($this->payload(), $changes);
-            foreach ([['POST', '/api/recipes'], ['PUT', '/api/recipes/'.$original['id']]] as [$method, $url]) {
+            foreach ([['POST', '/api/recipes'], ['PUT', '/api/recipes/'.$original['id']],
+                ['PATCH', '/api/recipes/'.$original['id']]] as [$method, $url]) {
                 $this->request($method, $url, $payload);
                 self::assertResponseStatusCodeSame(400);
                 self::assertIsString($this->body()['error']);
@@ -241,7 +243,8 @@ final class RecipeControllerTest extends WebTestCase
     {
         $this->request('POST', '/api/recipes', $this->payload());
         $original = $this->body();
-        foreach ([['POST', '/api/recipes'], ['PUT', '/api/recipes/'.$original['id']]] as [$method, $url]) {
+        foreach ([['POST', '/api/recipes'], ['PUT', '/api/recipes/'.$original['id']],
+            ['PATCH', '/api/recipes/'.$original['id']]] as [$method, $url]) {
             foreach (['', '{', 'null', 'true', '"text"', '[]'] as $body) {
                 $this->request($method, $url, $body);
                 self::assertResponseStatusCodeSame(400);
@@ -255,6 +258,84 @@ final class RecipeControllerTest extends WebTestCase
         }
         $this->request('GET', '/api/recipes');
         self::assertSame([$original], $this->body());
+    }
+
+    public function testPatchPreservesOmittedFieldsAndReplacesOnlySuppliedAssignments(): void
+    {
+        $this->request('POST', '/api/recipes', $this->payload());
+        self::assertResponseStatusCodeSame(201);
+        $original = $this->body();
+        $url = '/api/recipes/'.$original['id'];
+        $this->request('PATCH', $url, ['name' => '  New name  ']);
+        self::assertResponseStatusCodeSame(200);
+        $renamed = array_replace($original, ['name' => 'New name']);
+        self::assertSame($renamed, $this->body());
+        $this->request('GET', $url);
+        self::assertSame($renamed, $this->body());
+
+        $this->request('PATCH', $url, ['servings' => 4, 'instructions' => '  Stir well.  ',
+            'owner' => $this->userIds[1], 'owner_id' => $this->userIds[1], 'userId' => $this->userIds[1]]);
+        self::assertResponseStatusCodeSame(200);
+        $changed = array_replace($renamed, ['servings' => 4, 'instructions' => 'Stir well.']);
+        self::assertSame($changed, $this->body());
+        self::assertSame($this->userIds[0], $this->storedOwner($original['id']));
+        $this->request('PATCH', $url, '{}');
+        self::assertResponseStatusCodeSame(200);
+        self::assertSame($changed, $this->body());
+
+        $this->request('PATCH', $url, ['ingredients' => [$this->assignment(0, '250'), $this->assignment(2, '1')]]);
+        self::assertResponseStatusCodeSame(200);
+        self::assertSame('New name', $this->body()['name']);
+        self::assertSame(4, $this->body()['servings']);
+        self::assertSame('Stir well.', $this->body()['instructions']);
+        self::assertSame([$this->ingredientIds[0], $this->ingredientIds[2]], array_column($this->body()['ingredients'], 'ingredientId'));
+        self::assertSame('250.000', $this->body()['ingredients'][0]['quantity']);
+        self::assertSame(2, $this->linkCount($original['id']));
+        $this->request('PATCH', $url, ['ingredients' => []]);
+        self::assertResponseStatusCodeSame(200);
+        self::assertSame([], $this->body()['ingredients']);
+        self::assertSame(0, $this->linkCount($original['id']));
+        foreach ($this->ingredientIds as $id) {
+            self::assertNotFalse($this->db()->fetchOne('SELECT id FROM ingredient WHERE id = ?', [$id]));
+        }
+    }
+
+    public function testRejectedPartialPatchesLeaveAllPersistedFieldsUntouched(): void
+    {
+        $this->request('POST', '/api/recipes', $this->payload());
+        self::assertResponseStatusCodeSame(201);
+        $original = $this->body();
+        $url = '/api/recipes/'.$original['id'];
+        foreach ([['name' => null], ['servings' => null], ['instructions' => null],
+            ['ingredients' => null], ['name' => 'Attempted change', 'ingredients' => [
+                $this->assignment(0, '250'), $this->assignment(1, '0')]],
+            ['servings' => 5, 'instructions' => ' ']] as $patch) {
+            $this->request('PATCH', $url, $patch);
+            self::assertResponseStatusCodeSame(400);
+            $this->request('GET', $url);
+            self::assertSame($original, $this->body());
+        }
+        $this->request('PATCH', $url, '{', $this->tokens[1]);
+        self::assertResponseStatusCodeSame(404);
+        $this->request('GET', $url);
+        self::assertSame($original, $this->body());
+    }
+
+    public function testPatchDoesNotRenormalizeOmittedLegacyFields(): void
+    {
+        $this->request('POST', '/api/recipes', $this->payload());
+        self::assertResponseStatusCodeSame(201);
+        $id = $this->body()['id'];
+        $this->db()->executeStatement('UPDATE recipe SET name = ?, instructions = ? WHERE id = ?',
+            [' Legacy name ', ' Legacy instructions ', $id]);
+        $this->request('GET', '/api/recipes/'.$id);
+        $original = $this->body();
+        $this->request('PATCH', '/api/recipes/'.$id, ['servings' => 4]);
+        self::assertResponseStatusCodeSame(200);
+        self::assertSame(array_replace($original, ['servings' => 4]), $this->body());
+        $this->request('PATCH', '/api/recipes/'.$id, '{}');
+        self::assertResponseStatusCodeSame(200);
+        self::assertSame(array_replace($original, ['servings' => 4]), $this->body());
     }
 
     private function request(string $method, string $url, array|string|null $payload = null, ?string $token = null): void

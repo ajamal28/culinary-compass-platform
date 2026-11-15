@@ -321,6 +321,23 @@ final class RecipeControllerTest extends WebTestCase
         self::assertSame($original, $this->body());
     }
 
+    public function testPatchDoesNotRenormalizeOmittedLegacyFields(): void
+    {
+        $this->request('POST', '/api/recipes', $this->payload());
+        self::assertResponseStatusCodeSame(201);
+        $id = $this->body()['id'];
+        $this->db()->executeStatement('UPDATE recipe SET name = ?, instructions = ? WHERE id = ?',
+            [' Legacy name ', ' Legacy instructions ', $id]);
+        $this->request('GET', '/api/recipes/'.$id);
+        $original = $this->body();
+        $this->request('PATCH', '/api/recipes/'.$id, ['servings' => 4]);
+        self::assertResponseStatusCodeSame(200);
+        self::assertSame(array_replace($original, ['servings' => 4]), $this->body());
+        $this->request('PATCH', '/api/recipes/'.$id, '{}');
+        self::assertResponseStatusCodeSame(200);
+        self::assertSame(array_replace($original, ['servings' => 4]), $this->body());
+    }
+
     private function request(string $method, string $url, array|string|null $payload = null, ?string $token = null): void
     {
         $token ??= $this->tokens[0];

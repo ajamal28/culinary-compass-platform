@@ -1,6 +1,7 @@
 # Recipe API (CC-009)
 
-Implemented on `feature/recipe-api`; pending owner review and merge. All routes
+Merged into `main` through [PR #20](https://github.com/ajamal28/culinary-compass-platform/pull/20)
+on 13 November 2026. All routes
 require `Authorization: Bearer <JWT>` from `POST /api/login_check`.
 
 | Method | Route | Success |
@@ -14,6 +15,11 @@ require `Authorization: Bearer <JWT>` from `POST /api/login_check`.
 ## Create and replace
 
 POST and PUT accept the same JSON body:
+
+PUT is a full replacement, not a partial update: `name`, `servings`, and
+`instructions` are required, and omitted `ingredients` removes all assignments.
+`PATCH /api/recipes/{id}` is not implemented; partial updates require a separate
+owner-approved contract and implementation.
 
 ```json
 {
@@ -47,7 +53,7 @@ POST and PUT accept the same JSON body:
 - Extra fields are ignored. `owner`, `owner_id`, and `userId` cannot set or change
   ownership; the JWT principal determines ownership.
 
-Ingredient catalogue creation/discovery has no HTTP endpoint in this change.
+Ingredient catalogue search and creation have no HTTP endpoints yet.
 Ingredient IDs in the example must already exist; no ingredient is created or
 renamed by recipe writes. This API supports attaching, changing and removing
 existing ingredient assignments; a client-facing catalogue remains follow-up work.
@@ -93,4 +99,4 @@ then `php bin/phpunit`. Functional fixtures require the isolated
 Do not commit keys or local environment overrides.
 
 Follow the file-by-file review and approval gate in [AGENTS.md](../AGENTS.md).
-These changes must be reviewed and approved before commit or push.
+Future changes must be reviewed and approved before commit or push.

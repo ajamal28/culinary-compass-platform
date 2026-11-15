@@ -12,6 +12,7 @@ use Symfony\Component\HttpFoundation\Exception\JsonException;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
 use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 use Symfony\Component\Routing\Attribute\Route;
 
@@ -67,6 +68,7 @@ final class RecipeController extends AbstractController
     }
 
     #[Route('/api/recipes/{id}', name: 'api_recipe_update', methods: ['PUT'])]
+    #[Route('/api/recipes/{id}', name: 'api_recipe_patch', methods: ['PATCH'])]
     public function update(string $id, Request $request): JsonResponse
     {
         $recipe = $this->ownedRecipe($id);
@@ -107,7 +109,11 @@ final class RecipeController extends AbstractController
     private function readInput(Recipe $recipe, Request $request): ?JsonResponse
     {
         try {
-            $this->input->apply($recipe, $request->toArray());
+            $data = $request->toArray();
+            if ($request->isMethod('PATCH') && !str_starts_with(ltrim($request->getContent()), '{')) {
+                throw new BadRequestHttpException('Recipe patch must be a JSON object');
+            }
+            $this->input->apply($recipe, $data, partial: $request->isMethod('PATCH'));
         } catch (JsonException) {
             return $this->json(['error' => 'Invalid JSON request body'], Response::HTTP_BAD_REQUEST);
         } catch (HttpExceptionInterface $exception) {

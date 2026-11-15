@@ -10,6 +10,7 @@ require `Authorization: Bearer <JWT>` from `POST /api/login_check`.
 | GET | `/api/recipes` | `200`, JSON array of owned recipes ordered by ID; `[]` when empty |
 | GET | `/api/recipes/{id}` | `200`, owned recipe JSON |
 | PUT | `/api/recipes/{id}` | `200`, replacement recipe JSON |
+| PATCH | `/api/recipes/{id}` | `200`, updated recipe JSON (feature branch; pending merge) |
 | DELETE | `/api/recipes/{id}` | `204`, empty body |
 
 ## Create and replace
@@ -18,8 +19,8 @@ POST and PUT accept the same JSON body:
 
 PUT is a full replacement, not a partial update: `name`, `servings`, and
 `instructions` are required, and omitted `ingredients` removes all assignments.
-`PATCH /api/recipes/{id}` is not implemented; partial updates require a separate
-owner-approved contract and implementation.
+`PATCH /api/recipes/{id}` supports partial updates on `feature/cc-014-recipe-patch`
+(pending review and merge), as described below.
 
 ```json
 {
@@ -52,6 +53,23 @@ owner-approved contract and implementation.
   mutation, so rejected requests leave existing recipes and links unchanged.
 - Extra fields are ignored. `owner`, `owner_id`, and `userId` cannot set or change
   ownership; the JWT principal determines ownership.
+
+## Partial updates (CC-014)
+
+PATCH accepts an `application/json` object containing any subset of `name`,
+`servings`, `instructions`, and `ingredients`. For example, `{"servings":4}` changes
+only servings; omitted fields and ingredient links are preserved. Supplied fields
+use the same validation as POST and PUT. Explicit `null` is invalid.
+
+Supplying `ingredients` replaces the complete assignment list; `[]` clears it.
+An empty object `{}` is a successful no-op. Unknown fields, including ownership
+fields, are ignored, consistently with POST and PUT. This is an application JSON
+contract, not JSON Patch (RFC 6902) or JSON Merge Patch (RFC 7396).
+
+PATCH returns the full recipe representation with `200`. Invalid JSON, non-object
+bodies or invalid supplied fields return `400`; duplicate ingredients return
+`409`. Missing/foreign recipes return `404` before body validation. JWT errors
+return `401`. Rejected patches leave all persisted fields and links unchanged.
 
 Ingredient catalogue search and creation have no HTTP endpoints yet.
 Ingredient IDs in the example must already exist; no ingredient is created or

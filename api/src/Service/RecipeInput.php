@@ -16,8 +16,14 @@ final class RecipeInput
     {
     }
 
-    public function apply(Recipe $recipe, array $data): void
+    public function apply(Recipe $recipe, array $data, bool $partial = false): void
     {
+        $replaceIngredients = !$partial || array_key_exists('ingredients', $data);
+        if ($partial) {
+            // Array union supplies only omitted fields; explicit null must still fail.
+            $data += ['name' => $recipe->getName(), 'servings' => $recipe->getServings(),
+                'instructions' => $recipe->getInstructions()];
+        }
         $name = $data['name'] ?? null;
         $servings = $data['servings'] ?? null;
         $instructions = $data['instructions'] ?? null;
@@ -68,6 +74,9 @@ final class RecipeInput
         }
 
         $recipe->setName(trim($name))->setServings($servings)->setInstructions(trim($instructions));
+        if (!$replaceIngredients) {
+            return;
+        }
         // Reuse retained links: deleting and reinserting the same pair in one flush
         // would collide with the existing unique constraint before orphan deletion.
         foreach ($recipe->getRecipeIngredients()->toArray() as $link) {
